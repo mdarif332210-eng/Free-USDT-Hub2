@@ -1,0 +1,6 @@
+{
+  "name": "Free USDT Hub",
+  "description": "Global crypto market intelligence, educational earning guides, real-time CoinGecko market data, auto-curated news, and Monetag monetization framework.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,214 @@
+// Prisma Schema for Free USDT Hub (MySQL / MariaDB)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  slug        String    @unique @db.VarChar(120)
+  name        String    @db.VarChar(120)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  articles    Article[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id          String       @id @default(uuid())
+  name        String       @unique @db.VarChar(80)
+  slug        String       @unique @db.VarChar(80)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  articleTags ArticleTag[]
+
+  @@map("tags")
+}
+
+model Article {
+  id              String       @id @default(uuid())
+  slug            String       @unique @db.VarChar(180)
+  title           String       @db.VarChar(255)
+  summary         String       @db.Text
+  content         String       @db.LongText
+  featuredImage   String?      @map("featured_image") @db.VarChar(500)
+  type            ArticleType  @default(BLOG)
+  status          PostStatus   @default(PUBLISHED)
+  sourceUrl       String?      @map("source_url") @db.VarChar(500)
+  sourceName      String?      @map("source_name") @db.VarChar(120)
+  authorName      String       @default("Free USDT Hub Editorial") @map("author_name") @db.VarChar(120)
+  publishedAt     DateTime     @default(now()) @map("published_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  categoryId      String?      @map("category_id")
+  category        Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  views           PostView?
+  articleTags     ArticleTag[]
+
+  @@index([type, status, publishedAt])
+  @@index([categoryId])
+  @@map("articles")
+}
+
+model ArticleTag {
+  articleId String  @map("article_id")
+  tagId     String  @map("tag_id")
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([tagId])
+  @@map("article_tags")
+}
+
+model PostView {
+  id           String   @id @default(uuid())
+  articleSlug  String   @unique @map("article_slug") @db.VarChar(180)
+  articleId    String?  @unique @map("article_id")
+  viewsCount   Int      @default(0) @map("views_count")
+  lastViewedAt DateTime @default(now()) @map("last_viewed_at")
+  article      Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([viewsCount])
+  @@map("post_views")
+}
+
+model NewsSource {
+  id         String     @id @default(uuid())
+  code       String     @unique @db.VarChar(50)
+  name       String     @db.VarChar(120)
+  feedUrl    String     @map("feed_url") @db.VarChar(500)
+  isActive   Boolean    @default(true) @map("is_active")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  importLogs NewsImportLog[]
+
+  @@map("news_sources")
+}
+
+model NewsImportLog {
+  id          String      @id @default(uuid())
+  sourceId    String      @map("source_id")
+  status      String      @db.VarChar(50)
+  itemsSynced Int         @default(0) @map("items_synced")
+  errorMessage String?    @map("error_message") @db.Text
+  createdAt   DateTime    @default(now()) @map("created_at")
+  source      NewsSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, createdAt])
+  @@map("news_import_logs")
+}
+
+model Coin {
+  id             String          @id @db.VarChar(80)
+  symbol         String          @db.VarChar(20)
+  name           String          @db.VarChar(100)
+  image          String?         @db.VarChar(500)
+  marketCapRank  Int?            @map("market_cap_rank")
+  currentPriceUsd Decimal?       @map("current_price_usd") @db.Decimal(24, 8)
+  priceChange24h Decimal?        @map("price_change_24h") @db.Decimal(10, 4)
+  marketCapUsd   Decimal?        @map("market_cap_usd") @db.Decimal(28, 2)
+  totalVolume24h Decimal?        @map("total_volume_24h") @db.Decimal(28, 2)
+  circulatingSupply Decimal?     @map("circulating_supply") @db.Decimal(28, 2)
+  totalSupply    Decimal?        @map("total_supply") @db.Decimal(28, 2)
+  lastUpdated    DateTime        @default(now()) @map("last_updated")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  snapshots      CoinSnapshot[]
+
+  @@index([symbol])
+  @@index([marketCapRank])
+  @@map("coins")
+}
+
+model CoinMarketCache {
+  id          String   @id @default("global_market_cache") @db.VarChar(60)
+  payloadJson String   @map("payload_json") @db.LongText
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("coin_market_cache")
+}
+
+model CoinSnapshot {
+  id         String   @id @default(uuid())
+  coinId     String   @map("coin_id") @db.VarChar(80)
+  priceUsd   Decimal  @map("price_usd") @db.Decimal(24, 8)
+  volume24h  Decimal? @map("volume_24h") @db.Decimal(28, 2)
+  recordedAt DateTime @default(now()) @map("recorded_at")
+  coin       Coin     @relation(fields: [coinId], references: [id], onDelete: Cascade)
+
+  @@index([coinId, recordedAt])
+  @@map("coin_snapshots")
+}
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
+model SeoMetadata {
+  id             String   @id @default(uuid())
+  routePath      String   @unique @map("route_path") @db.VarChar(200)
+  title          String   @db.VarChar(255)
+  description    String   @db.VarChar(500)
+  canonicalUrl   String?  @map("canonical_url") @db.VarChar(500)
+  ogTitle        String?  @map("og_title") @db.VarChar(255)
+  ogDescription  String?  @map("og_description") @db.VarChar(500)
+  ogImage        String?  @map("og_image") @db.VarChar(500)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("seo_metadata")
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(120)
+  email     String   @db.VarChar(180)
+  subject   String   @db.VarChar(200)
+  message   String   @db.Text
+  ipAddress String?  @map("ip_address") @db.VarChar(60)
+  userAgent String?  @map("user_agent") @db.VarChar(300)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique @db.VarChar(180)
+  status    String   @default("ACTIVE") @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("newsletter_subscribers")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   @db.VarChar(100)
+  details   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+enum ArticleType {
+  BLOG
+  NEWS
+  GUIDE
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
